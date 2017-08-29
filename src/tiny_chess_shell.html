@@ -1,0 +1,15 @@
+<!doctype html><html lang="en-us">
+<head><meta charset="utf-8"><title>TinyChess</title></head>
+<body>
+  <canvas id="canvas" width=480 height=480></canvas><br>
+  <textarea class="emscripten" id="output" rows="8"></textarea>
+  <script type='text/javascript'>
+    var Module = {
+      print: function() { console.log(Array.prototype.slice.call(arguments).join(' ')); },
+      printErr: function() { console.error(Array.prototype.slice.call(arguments).join(' ')); },
+      canvas: (function() { return document.getElementById('canvas'); })(),
+    };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>
