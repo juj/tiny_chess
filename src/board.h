@@ -76,7 +76,7 @@ public:
   int enpassantX, enpassantY;
 
   int &At(int x, int y) { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? piece[y][x] : out; }
-  const int At(int x, int y) const { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? piece[y][x] : out; }
+  int At(int x, int y) const { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? piece[y][x] : out; }
 
   void init();
 

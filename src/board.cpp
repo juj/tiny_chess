@@ -325,12 +325,12 @@ int Board::generate_moves(int x, int y, int *moves)
   return num;
 }
 
-bool Board::find_first_piece(int piece, int *X, int *Y)
+bool Board::find_first_piece(int p, int *X, int *Y)
 {
   for(int y = 0; y < 8; ++y)
     for(int x = 0; x < 8; ++x)
     {
-      if (At(x, y) == piece)
+      if (At(x, y) == p)
       {
         *X = x;
         *Y = y;
