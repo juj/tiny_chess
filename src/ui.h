@@ -2,7 +2,7 @@
 
 void init_gl();
 void load_assets();
-void init_board();
+void new_game();
 void update();
 
 #ifdef __EMSCRIPTEN__

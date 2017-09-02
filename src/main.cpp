@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 #endif
   init_gl();
   load_assets();
-  init_board();
+  new_game();
 
 #ifdef __EMSCRIPTEN__
   emscripten_set_main_loop(update, 0, 0);

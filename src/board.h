@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 #define NO_UNIT 0
 #define WHITE 0x10
 #define BLACK 0x20
@@ -59,46 +61,61 @@
 
 #define IS_OPPONENT(player_color, piece) ((PLAYER_COLOR(piece) ^ (player_color)) == (WHITE|BLACK))
 
+#define IS_OUT_OF_BOARD(x, y) ((x) < 0 || (x) >= 8 || (y) < 0 || (y) >= 8)
+
 #define KING_AT_HOME 0x1
 #define KING_ROOK_AT_HOME 0x2
 #define QUEEN_ROOK_AT_HOME 0x4
 #define KINGSIDE_CASTLING_MASK (KING_AT_HOME|KING_ROOK_AT_HOME)
 #define QUEENSIDE_CASTLING_MASK (KING_AT_HOME|QUEEN_ROOK_AT_HOME)
 
+typedef uint8_t piece_t;
+
 struct Board
 {
 public:
-  int out;
-  int piece[8][8];
-  int currentPlayer;
-  int castlingPiecesAtHome[2];
+  piece_t out;
+  piece_t board[8][8];
+  uint8_t currentPlayer;
+  uint8_t castlingPiecesAtHome[2];
+  int8_t enpassantX, enpassantY;
 
-  int enpassantX, enpassantY;
+  piece_t &At(int x, int y) { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? board[y][x] : out; }
+  piece_t At(int x, int y) const { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? board[y][x] : out; }
 
-  int &At(int x, int y) { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? piece[y][x] : out; }
-  int At(int x, int y) const { return (x >= 0 && x < 8 && y >= 0 && y < 8) ? piece[y][x] : out; }
+  // Sets up initial game starting position.
+  void new_game();
 
-  void init();
+  // Finds coordinates of the specified king on board, kingPiece == WHITE_KING or BLACK_KING.
+  void find_king(int kingPiece, int *x, int *y);
 
-  bool find_first_piece(int piece, int *x, int *y);
-
+  // Returns true of the king of given color == WHITE or BLACK is currently in check.
   bool is_king_in_check(int color);
 
   // Applies the given move without checking for its legality.
   void make_move(int srcX, int srcY, int dstX, int dstY);
 
-  // moves must be at least 3*8*2 = 48 ints long. Returns number of moves generated.
-  int generate_moves(int x, int y, int *moves);
-  int generate_moves_without_king_safety(int x, int y, int *moves);
+  // Returns true if the given move is legal.
+  bool is_valid_move(int srcX, int srcY, int dstX, int dstY);
 
-  int generate_pawn_moves(int x, int y, int *moves);
-  int generate_knight_moves(int x, int y, int *moves);
-  int generate_rook_moves(int x, int y, int *moves);
-  int generate_bishop_moves(int x, int y, int *moves);
-  int generate_queen_moves(int x, int y, int *moves);
-  int generate_king_moves(int x, int y, int *moves);
+  // Returns true if the piece at the given coordinates has any legal moves.
+  bool has_valid_moves(int x, int y);
 
+  // Generates all legal moves for the piece in the specified coordinates, as (x,y) pairs.
+  // The moves array must be at least 3*8*2 = 48 ints long. Returns iterator style pointer to end of written array.
+  int *generate_moves(int x, int y, int *moves);
+
+  // Marks all squares controlled by the given player.
   void mark_controlled_squares(int color, int squares[8][8]);
+
+private:
+  int *generate_moves_without_king_safety(int pieceColor, int x, int y, int *moves);
+  int *generate_pawn_moves(int pieceColor, int x, int y, int *moves);
+  int *generate_knight_moves(int pieceColor, int x, int y, int *moves);
+  int *generate_rook_moves(int pieceColor, int x, int y, int *moves);
+  int *generate_bishop_moves(int pieceColor, int x, int y, int *moves);
+  int *generate_queen_moves(int pieceColor, int x, int y, int *moves);
+  int *generate_king_moves(int pieceColor, int x, int y, int *moves);
 
   void mark_pawn_controlled_squares(int x, int y, int squares[8][8]);
   void mark_knight_controlled_squares(int x, int y, int squares[8][8]);

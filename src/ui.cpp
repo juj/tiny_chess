@@ -4,11 +4,18 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/html5.h>
-
+extern "C" void upload_unicode_char_to_texture(int unicodeChar, int charSize, bool applyShadow);
 EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext;
-#endif
+#endif // ~__EMSCRIPTEN__
 
 #include "board.h"
+
+GLuint quad, colorPos, matPos;
+GLuint textures[NUM_TEXTURES];
+Board board;
+int mouseHoverX = -1, mouseHoverY = -1;
+int mouseSelectX = -1, mouseSelectY = -1;
+bool uiNeedsRepaint = false;
 
 void create_context()
 {
@@ -16,7 +23,6 @@ void create_context()
   EmscriptenWebGLContextAttributes attrs;
   emscripten_webgl_init_context_attributes(&attrs);
   attrs.alpha = 0;
-//  attrs.explicitSwapControl = 1;
   glContext = emscripten_webgl_create_context(0, &attrs);
   emscripten_webgl_make_context_current(glContext);
 #else
@@ -38,51 +44,40 @@ GLuint create_program(GLuint vertexShader, GLuint fragmentShader)
    glAttachShader(program, vertexShader);
    glAttachShader(program, fragmentShader);
    glBindAttribLocation(program, 0, "in_pos");
-   glBindAttribLocation(program, 1, "in_uv");
    glLinkProgram(program);
    glUseProgram(program);
    return program;
 }
-
-GLuint quad, colorPos, matPos;
 
 void init_gl()
 {
   create_context();
 
   static const char vertex_shader[] =
-    "attribute vec4 in_pos;\n"
-    "varying vec2 uv;\n"
-    "uniform mat4 mat;\n"
-    "void main(void) {\n"
-    "  uv = in_pos.xy;\n"
-    "  gl_Position = mat*vec4(in_pos.xy,0,1);\n"
+    "attribute vec4 in_pos;"
+    "varying vec2 uv;"
+    "uniform mat4 mat;"
+    "void main(){"
+      "uv=in_pos.xy;"
+      "gl_Position=mat*in_pos;"
     "}";
   GLuint vs = compile_shader(GL_VERTEX_SHADER, vertex_shader);
 
   static const char fragment_shader[] =
-    "precision lowp float;\n"
-    "uniform sampler2D tex;\n"
-    "varying vec2 uv;\n"
-    "uniform vec4 color;\n"
-    "void main(void) {\n"
-    "  gl_FragColor = color*texture2D(tex, uv);\n"
+    "precision lowp float;"
+    "uniform sampler2D tex;"
+    "varying vec2 uv;"
+    "uniform vec4 color;"
+    "void main(){"
+      "gl_FragColor=color*texture2D(tex,uv);"
     "}";
   GLuint fs = compile_shader(GL_FRAGMENT_SHADER, fragment_shader);
 
   GLuint program = create_program(vs, fs);
-
   colorPos = glGetUniformLocation(program, "color");
   matPos = glGetUniformLocation(program, "mat");
-
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
-
-#define UNICODE_WHITE_CHESS_KING 0x2654
-
-GLuint textures[NUM_TEXTURES];
-
-extern "C" void upload_unicode_char_to_texture(int unicodeChar, int charSize, bool applyShadow);
 
 GLuint create_texture()
 {
@@ -113,6 +108,7 @@ void load_assets()
   for(int i = WHITE_KING_TEXTURE; i < NUM_TEXTURES; ++i)
   {
     textures[i] = create_texture();
+    const int UNICODE_WHITE_CHESS_KING = 0x2654;
     upload_unicode_char_to_texture(UNICODE_WHITE_CHESS_KING + (i-1), charSize, IS_TEXTURE_FOR_WHITE_PIECE(i));
   }
 }
@@ -131,9 +127,9 @@ const float boardScale = 1.f / 8.f;
 void draw_piece(float x, float y, int piece)
 {
   int textureIndex = (IS_WHITE_PIECE(piece) ? SOLID_COLOR_TEXTURE : WHITE_PAWN_TEXTURE) + PIECE_TYPE(piece);
-#define VERTICAL_OFFSET (-1.f / 480.f)
-  if (IS_WHITE_PIECE(piece)) draw(x * boardScale, y * boardScale + VERTICAL_OFFSET, boardScale, boardScale, 1.f, 1.f, 1.f, 1.f, textures[textureIndex]);
-  else draw(x * boardScale, y * boardScale + VERTICAL_OFFSET, boardScale, boardScale, 0.f, 0.f, 0.f, 1.f, textures[textureIndex]);
+  const float verticalOffset = -1.f / 480.f;
+  if (IS_WHITE_PIECE(piece)) draw(x * boardScale, y * boardScale + verticalOffset, boardScale, boardScale, 1.f, 1.f, 1.f, 1.f, textures[textureIndex]);
+  else draw(x * boardScale, y * boardScale + verticalOffset, boardScale, boardScale, 0.f, 0.f, 0.f, 1.f, textures[textureIndex]);
 }
 
 void draw_solid(float x, float y, float r, float g, float b, float a)
@@ -143,91 +139,61 @@ void draw_solid(float x, float y, float r, float g, float b, float a)
 
 void draw_background()
 {
-#define BLACK_BG 0.463f, 0.589f, 0.337f, 1.f
-#define WHITE_BG 0.933f, 0.933f, 0.834f, 1.f
-
   int i = 0;
-  for(int y = 0; y < 8; ++y)
-  {
-    for(int x = 0; x < 8; ++x)
+  for(int y = 0; y < 8; ++y, ++i)
+    for(int x = 0; x < 8; ++x, ++i)
     {
-      if (i%2 == 0) draw_solid(x, y, BLACK_BG);
-      else draw_solid(x, y, WHITE_BG);
-      ++i;
-    }
-    ++i;
-  }
-}
-
-void draw_pieces(const Board &board)
-{
-  for(int y = 0; y < 8; ++y)
-    for(int x = 0; x < 8; ++x)
-    {
-      if (board.At(x, y)) draw_piece(x, y, board.At(x, y));
+      if (i % 2 == 0) draw_solid(x, y, 0.463f, 0.589f, 0.337f, 1.f); // Black background
+      else draw_solid(x, y, 0.933f, 0.933f, 0.834f, 1.f); // White background
     }
 }
 
-Board board;
-
-int mouseHoverX = -1, mouseHoverY = -1;
-int mouseSelectX = -1, mouseSelectY = -1;
-
-bool has_valid_moves(int x, int y)
+void draw_pieces()
 {
-  int moves[48*2];
-  int num = board.generate_moves(x, y, moves);
-  return num != 0;
-}
-
-bool is_valid_move(int srcX, int srcY, int dstX, int dstY)
-{
-  int moves[48*2];
-  int end = board.generate_moves(srcX, srcY, moves);
-  for(int *m = moves, *e = moves + end; m != e; m += 2)
-  {
-    if (m[0] == dstX && m[1] == dstY)
-      return true;
-  }
-  return false;
+  for(int y = 0; y < 8; ++y)
+    for(int x = 0; x < 8; ++x)
+      if (board.board[y][x])
+        draw_piece(x, y, board.board[y][x]);
 }
 
 void make_move(int srcX, int srcY, int dstX, int dstY)
 {
-  if (!is_valid_move(srcX, srcY, dstX, dstY)) return;
-
+  if (!board.is_valid_move(srcX, srcY, dstX, dstY)) return;
   board.make_move(srcX, srcY, dstX, dstY);
-
   mouseSelectX = -1;
 }
 
 EM_BOOL mouse_callback(int eventType, const EmscriptenMouseEvent *e, void *)
 {
   int x = e->canvasX * 8 / 480;
-  int y = (479 - e->canvasY) * 8 / 480;        
+  int y = (479 - e->canvasY) * 8 / 480;
+  if (IS_OUT_OF_BOARD(x, y))
+  {
+    if (mouseHoverX != -1 || mouseHoverY != -1)
+    {
+      mouseHoverX = mouseHoverY = -1;
+      uiNeedsRepaint = true;
+    }
+    return EM_FALSE;
+  }
   switch(eventType)
   {
     case EMSCRIPTEN_EVENT_MOUSEMOVE:
-      mouseHoverX = x;
-      mouseHoverY = y;
+      if (x != mouseHoverX || y != mouseHoverY)
+      {
+        mouseHoverX = x, mouseHoverY = y;
+        uiNeedsRepaint = true;
+      }
       break;
     case EMSCRIPTEN_EVENT_MOUSEDOWN:
       if (mouseSelectX == -1)
       {
-        if (PLAYER_COLOR(board.At(x, y)) == board.currentPlayer && has_valid_moves(x, y))
-        {
-          mouseSelectX = x;
-          mouseSelectY = y;
-        }
+        if (PLAYER_COLOR(board.At(x, y)) == board.currentPlayer && board.has_valid_moves(x, y))
+          mouseSelectX = x, mouseSelectY = y;
       }
-      else if (mouseSelectX == x && mouseSelectY == y)
-      {
-        mouseSelectX = -1;
-      }
-      else
-      {
-        make_move(mouseSelectX, mouseSelectY, x, y);
-      }
+      else if (mouseSelectX == x && mouseSelectY == y) mouseSelectX = -1;
+      else make_move(mouseSelectX, mouseSelectY, x, y);
+      uiNeedsRepaint = true;
       break;
   }
   return EM_FALSE;
@@ -238,58 +204,37 @@ void render()
   glBindBuffer(GL_ARRAY_BUFFER, quad);
   glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
   glEnableVertexAttribArray(0);
-
   glDisable(GL_BLEND);
-
   draw_background();
-
   glEnable(GL_BLEND);
-
+  // Draw a hint square if king is in check
   if (board.is_king_in_check(board.currentPlayer))
   {
     int kingX, kingY;
-    board.find_first_piece(board.currentPlayer == WHITE ? WHITE_KING : BLACK_KING, &kingX, &kingY);
-#define KING_IN_CHECK_HINT_COLOR 1.f, 0.3f, 0.3f, 0.8f
-    draw_solid(kingX, kingY, KING_IN_CHECK_HINT_COLOR);
+    board.find_king(board.currentPlayer == WHITE ? WHITE_KING : BLACK_KING, &kingX, &kingY);
+    draw_solid(kingX, kingY, 1.f, 0.3f, 0.3f, 0.8f);
   }
-
-#define VALID_MOVE_HINT_COLOR 1.f, 0.8f, 0.6f, 0.8f
-
+  // If player has activate a piece for move, draw hint squares for legal positions to move to.
   if (mouseSelectX >= 0)
   {
     int moves[48*2];
-    int end = board.generate_moves(mouseSelectX, mouseSelectY, moves);
-    for(int *m = moves, *e = moves + end; m != e; m += 2)
-    {
-      draw_solid(m[0], m[1], VALID_MOVE_HINT_COLOR);
-    }
+    int *end = board.generate_moves(mouseSelectX, mouseSelectY, moves);
+    for(int *m = moves; m != end; m += 2)
+      draw_solid(m[0], m[1], 1.f, 0.8f, 0.6f, 0.8f);
   }
-
-#define MOUSE_HOVER_BG 0.7f, 0.7f, 1.f, 0.6f
-
-  if (mouseHoverX >= 0)
-    draw_solid(mouseHoverX, mouseHoverY, MOUSE_HOVER_BG);
-
-#define MOUSE_SELECT_BG 0.5f, 0.5f, 1.f, 1.f
-
-  if (mouseSelectX >= 0)
-    draw_solid(mouseSelectX, mouseSelectY, MOUSE_SELECT_BG);
-
-  draw_pieces(board);
-
-#ifdef __EMSCRIPTEN__
-//  emscripten_webgl_commit_frame();
-#endif
+  if (mouseHoverX >= 0) draw_solid(mouseHoverX, mouseHoverY, 0.7f, 0.7f, 1.f, 0.6f); // Draw highlight square under mouse cursor
+  if (mouseSelectX >= 0) draw_solid(mouseSelectX, mouseSelectY, 0.5f, 0.5f, 1.f, 1.f); // Draw even stronger highlight square under the selected piece
+  draw_pieces();
+  uiNeedsRepaint = false;
 }
 
 void update()
 {
-
-  // if (needsRepaint)
-  render();
+  if (uiNeedsRepaint) render();
 }
 
-void init_board()
+void new_game()
 {
-  board.init();
+  board.new_game();
+  uiNeedsRepaint = true;
 }
