@@ -3,7 +3,7 @@
 void init_gl();
 void load_assets();
 void new_game();
-void update();
+void draw_board();
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>

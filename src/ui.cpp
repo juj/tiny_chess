@@ -122,7 +122,7 @@ void draw(float x, float y, float w, float h, float r, float g, float b, float a
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-const float boardScale = 1.f / 8.f;
+const float boardScale = 1.f / 8.f; // TODO: Make this scale dynamically to resize to full screen size
 
 void draw_piece(float x, float y, int piece)
 {
@@ -139,8 +139,7 @@ void draw_solid(float x, float y, float r, float g, float b, float a)
 
 void draw_background()
 {
-  int i = 0;
-  for(int y = 0; y < 8; ++y, ++i)
+  for(int i = 0, y = 0; y < 8; ++y, ++i)
     for(int x = 0; x < 8; ++x, ++i)
     {
       if (i % 2 == 0) draw_solid(x, y, 0.463f, 0.589f, 0.337f, 1.f); // Black background
@@ -199,11 +198,12 @@ EM_BOOL mouse_callback(int eventType, const EmscriptenMouseEvent *e, void *)
   return EM_FALSE;
 }
 
-void render()
+void draw_board()
 {
-  glBindBuffer(GL_ARRAY_BUFFER, quad);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-  glEnableVertexAttribArray(0);
+  if (!uiNeedsRepaint) return;
+  glBindBuffer(GL_ARRAY_BUFFER, quad); // TODO: Remove this line, specified as a workaround to -s OFFSCREEN_FRAMEBUFFER=1 bug
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0); // TODO: Remove this line, specified as a workaround to -s OFFSCREEN_FRAMEBUFFER=1 bug
+  glEnableVertexAttribArray(0); // TODO: Remove this line, specified as a workaround to -s OFFSCREEN_FRAMEBUFFER=1 bug
   glDisable(GL_BLEND);
   draw_background();
   glEnable(GL_BLEND);
@@ -226,11 +226,6 @@ void render()
   if (mouseSelectX >= 0) draw_solid(mouseSelectX, mouseSelectY, 0.5f, 0.5f, 1.f, 1.f); // Draw even stronger highlight square under the selected piece
   draw_pieces();
   uiNeedsRepaint = false;
-}
-
-void update()
-{
-  if (uiNeedsRepaint) render();
 }
 
 void new_game()
