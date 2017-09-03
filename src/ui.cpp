@@ -43,7 +43,7 @@ GLuint create_program(GLuint vertexShader, GLuint fragmentShader)
    GLuint program = glCreateProgram();
    glAttachShader(program, vertexShader);
    glAttachShader(program, fragmentShader);
-   glBindAttribLocation(program, 0, "in_pos");
+   glBindAttribLocation(program, 0, "pos");
    glLinkProgram(program);
    glUseProgram(program);
    return program;
@@ -54,12 +54,12 @@ void init_gl()
   create_context();
 
   static const char vertex_shader[] =
-    "attribute vec4 in_pos;"
+    "attribute vec4 pos;"
     "varying vec2 uv;"
     "uniform mat4 mat;"
     "void main(){"
-      "uv=in_pos.xy;"
-      "gl_Position=mat*in_pos;"
+      "uv=pos.xy;"
+      "gl_Position=mat*pos;"
     "}";
   GLuint vs = compile_shader(GL_VERTEX_SHADER, vertex_shader);
 
