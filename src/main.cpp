@@ -2,7 +2,7 @@
 
 void start_stockfish(int argc, char **argv);
 
-int main(int argc, char **argv)
+int main()
 {
 #if INCLUDE_STOCKFISH
   start_stockfish(argc, argv);
