@@ -1,5 +1,5 @@
 mergeInto(LibraryManager.library, {
-  upload_unicode_char_to_texture__proxy: 'main',
+  upload_unicode_char_to_texture__proxy: 'sync',
   upload_unicode_char_to_texture__sig: 'iii',
   upload_unicode_char_to_texture: function(unicodeChar, charSize, applyShadow) {
     var canvas = document.createElement('canvas');
